@@ -72,45 +72,16 @@
 
 /* single relays or 2/4/8/16 relay modules are usually connected to TB5/6/7 */
 
-/* one way to call them is to use digitalWrite() in Arduino framework */
-// #define RLY1_ON     pinMode(37, OUTPUT);digitalWrite(37, LOW);
-// #define RLY1_OFF    pinMode(37, OUTPUT);digitalWrite(37, HIGH);
-// #define RLY2_ON     pinMode(36, OUTPUT);digitalWrite(36, LOW);
-// #define RLY2_OFF    pinMode(36, OUTPUT);digitalWrite(36, HIGH);
-// #define RLY3_ON     pinMode(35, OUTPUT);digitalWrite(35, LOW);
-// #define RLY3_OFF    pinMode(35, OUTPUT);digitalWrite(35, HIGH);
-// #define RLY4_ON     pinMode(34, OUTPUT);digitalWrite(34, LOW);
-// #define RLY4_OFF    pinMode(34, OUTPUT);digitalWrite(34, HIGH);
-// #define RLY5_ON     pinMode(33, OUTPUT);digitalWrite(33, LOW);
-// #define RLY5_OFF    pinMode(33, OUTPUT);digitalWrite(33, HIGH);
-// #define RLY6_ON     pinMode(32, OUTPUT);digitalWrite(32, LOW);
-// #define RLY6_OFF    pinMode(32, OUTPUT);digitalWrite(32, HIGH);
-// #define RLY7_ON     pinMode(A15, OUTPUT);digitalWrite(A15, LOW);
-// #define RLY7_OFF    pinMode(A15, OUTPUT);digitalWrite(A15, HIGH);
-// #define RLY8_ON     pinMode(A14, OUTPUT);digitalWrite(A14, LOW);
-// #define RLY8_OFF    pinMode(A14, OUTPUT);digitalWrite(A14, HIGH);
-// #define RLY9_ON     pinMode(A13, OUTPUT);digitalWrite(A13, LOW);
-// #define RLY9_OFF    pinMode(A13, OUTPUT);digitalWrite(A13, HIGH);
-// #define RLY10_ON     pinMode(A12, OUTPUT);digitalWrite(A12, LOW);
-// #define RLY10_OFF    pinMode(A12, OUTPUT);digitalWrite(A12, HIGH);
-// #define RLY11_ON     pinMode(A11, OUTPUT);digitalWrite(A11, LOW);
-// #define RLY11_OFF    pinMode(A11, OUTPUT);digitalWrite(A11, HIGH);
-// #define RLY12_ON     pinMode(A10, OUTPUT);digitalWrite(A10, LOW);
-// #define RLY12_OFF    pinMode(A10, OUTPUT);digitalWrite(A10, HIGH);
-
-/* another way is to use #define in AVR framework */
-// #define RLY1        PC0
-// #define RLY2        PC1
-// #define RLY3        PC2
-// #define RLY4        PC3
-// #define RLY5        PC4
-// #define RLY6        PC5
-// #define RLY7        PK7
-// #define RLY8        PK6
-// #define RLY9        PK5
-// #define RLY10       PK4
-// #define RLY11       PK3
-// #define RLY12       PK2
+/*  RT67 controls connection between multimeter/relay_16 GND and arduino GND
+    Because relay_16 IN pins are pulled to ground when power is removed from arduino
+    relay_16 GND needs to be suspended/connected by software
+    multimeter GND needs to be suspended/connected when UART is used/measuring
+    both GNDs are connected to J2.3
+    one side of RT67 coil is connected to GND
+    the other side is connected PK1 (A9)
+ */
+#define RT67_ON     DDRK|=(1<<PK1);PORTK|=(1<<PK1);
+#define RT67_OFF    PORTK&=~(1<<PK1);
 
 /* or use array of structs if automatic iterations are involved */
 struct relay_module_t {

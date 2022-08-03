@@ -1,1 +1,7 @@
-## DEPLOY A FINTE STAE MACHINE ON ATMEGA 2560
+# GRIZZLE CHARGER
+Firmware for ATmega 2560.
+
+## CHANGE
+- Added message packet protocol.
+- Added all test functions
+- Modified state function matrix indexing

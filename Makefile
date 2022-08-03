@@ -8,8 +8,8 @@ USBPORT = /dev/ttyUSB0
 
 all: main.out
 
-main.out: main.o spi.o timers.o uart.o
-	$(CC) $(CFLAGS) main.o spi.o timers.o uart.o -o main.out
+main.out: main.o multimeter_click.h spi.o timers.o uart.o
+	$(CC) $(CFLAGS) main.o multimeter_click.h spi.o timers.o uart.o -o main.out
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $^
