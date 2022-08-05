@@ -7,6 +7,7 @@
 #include <util/delay.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "commons.h"
 #include "multimeter_click.h"
@@ -14,24 +15,34 @@
 #include "timers.h"
 #include "uart.h"
 
-#define BLINK_MS    1000
+#define r_channel   0x00
+#define g_channel   0x03
+#define b_channel   0x01
 
 uint8_t buffer[20] = {0};
 
+volatile uint16_t color_array_index = 0;
+volatile uint8_t color_channel = 0;
+volatile uint8_t counts_r = 0;
+volatile uint8_t counts_g = 0;
+volatile uint8_t counts_b = 0;
 volatile uint32_t buzzer_pwm_pulse = 0;
 volatile uint32_t tick = 0;
 volatile uint8_t beeps = 0;
 volatile uint8_t blinks = 0;
+volatile uint16_t color_pulse_count = 0;
 volatile uint8_t message;
+volatile bool color_data_ready = false;
 volatile bool message_ready = false;
 volatile bool beep_flag = false;
+volatile bool print_ready = false;
 
 struct message_packet_t message_packet;
 
 void init_system();
 void enable_beep();
 void enable_blink();
-void test_relay_module();
+void switch_color_channel(uint8_t color);
 void test_test_points();
 void test_1();
 void test_2();
@@ -47,6 +58,15 @@ void test_11();
 void _abort();
 void end();
 // void transition_look_up(struct state_machine_t *state_machine, enum event_t event);
+
+struct color_t {
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+};
+
+struct color_t color[1000];
+
 
 /* define all possible states */
 enum state_t {
@@ -149,8 +169,8 @@ void transition_look_up(struct state_machine_t* state_machine, enum event_t even
     for (uint8_t i=0;i<sizeof(state_transition_matrix)/sizeof(state_transition_matrix[0]);i++) {
         if (state_transition_matrix[i].current_state == state_machine->current_state) {
             if (state_transition_matrix[i].event == event) {
-                uart0_puts(state_function_matrix[i].name);
-                uart0_puts("\r\n");
+                // uart0_puts(state_function_matrix[i].name);
+                // uart0_puts("\r\n");
 
                 (state_function_matrix[i].func)();
                 state_machine->current_state = state_transition_matrix[i].next_state;
@@ -175,7 +195,7 @@ int main() {
             message_ready = false;
 
             transition_look_up(&state_machine, x);
-            PORTB ^= (1 << PB7);                                        // toggling LED provides visual indication
+            // PORTB ^= (1 << PB7);                                        // toggling LED provides visual indication
             sleep_mode();                                               // put MCU to sleep after function returns
         }
 
@@ -196,12 +216,15 @@ void init_system() {
     PORTG |= (1 << PG5);
 
     DDRF = (1<<PF4) | (1<<PF5) | (1<<PF6) | (1<<PF7);               // data pins to PD3603A PSU
-    
+    /* TEST ONLY*/
+    PORTF = (1<<PF4) | (1<<PF5) | (1<<PF6) | (1<<PF7);              // outputs 2.0 V
+
     RT67_ON
-    enable_blink();
+    
     uart0_init();
     init_timer0();
-    // test_relay_module();
+    init_timer1();
+    // init_timer3();
 
     set_sleep_mode(0);                                              // in Idle Mode, UART still runs
 
@@ -220,8 +243,20 @@ void enable_blink() {
     DDRH |= (1 << PH0) | (1 << PH1);                                // PH0: s3, PH1: s2
     DDRJ |= (1 << PJ0) | (1 << PJ1);                                // PJ0: s1, PJ1: s0
 
-    PORTJ |= (1 << PJ0) | (1 << PJ1);                               // frequency scaling 100%
+    // PORTJ |= (1 << PJ0) | (1 << PJ1);                               // frequency scaling 100%
+    PORTJ |= (1 << PJ1);                                            // frequency scaling 20%
+
+    EICRA |= (1 << ISC31) | (1 << ISC30);                           // rising edge on INT3 generates an interrupt reques
+    EIMSK |= (1 << INT3);                                           // enable INT3(PD3/D18)
 }
+
+// void test_color() {
+//     if (color_channel_change) {
+//         color_channel_change = false;
+
+//         switch 
+//     }
+// }
 
 void test_1() {
     uart0_puts("test: POWER ON\t\t");
@@ -230,17 +265,38 @@ void test_1() {
     _delay_ms(500);
     DDRC |= (1 << relay_16[0].pin) | (1 << relay_16[1].pin);
 
-    // for (;;) {
-    //     /* DEFAULT READ */
-        
-    //     PORTH |= (1 << PH0) | (1 << PH1);                           // G
-    //     _delay_ms(5000);
-    //     PORTH &= ~(1 << PH1);                                       // B
-    //     _delay_ms(5000);
-    //     PORTH &= ~(1 << PH0);                                       // R
-    //     _delay_ms(5000);
-    // }
+    enable_blink();
+    start_timer1();
 
+    sprintf(buffer, "%u\r\n", tick);
+    uart0_puts(buffer);
+
+    for (;;) {
+        if (print_ready) {
+            for (uint16_t i=0;i<1000;i++) {
+                sprintf(buffer, "%u\t", i+1);
+                uart0_puts(buffer);
+                memset(buffer, 0, 20);
+                sprintf(buffer, "%u\t", color[i].r);
+                uart0_puts(buffer);
+                memset(buffer, 0, 20);
+                sprintf(buffer, "%u\t", color[i].g);
+                uart0_puts(buffer);
+                memset(buffer, 0, 20);
+                sprintf(buffer, "%u\r\n", color[i].b);
+                uart0_puts(buffer);
+                memset(buffer, 0, 20);
+            }
+            break;
+        }
+        
+        if (173 < color[0].r < 191) {
+            // start timer
+            
+        }
+    }
+    stop_timer1();
+    EIMSK &= ~(1 << INT3);
 
     /* send test results at the end */
     // message_packet.number_beep = 0x5556;
@@ -313,7 +369,7 @@ void test_4() {
         
         // PORTH |= (1 << PH0) | (1 << PH1);                           // G
     //     _delay_ms(5000);
-        PORTH |= (1 << PH0);                                       // B
+        // PORTH |= (1 << PH0);                                       // B
     //     _delay_ms(5000);
     //     PORTH &= ~(1 << PH0);                                       // R
     //     _delay_ms(5000);
@@ -429,7 +485,7 @@ void test_10() {
     _delay_ms(11000);
 
     PORTC |= (1 << relay_16[2].pin) | (1 << relay_16[0].pin) | (1 << relay_16[1].pin);
-    PORTK |= (1 << relay_16[8].pin);
+    PORTK |= (1 << relay_16[8].pin) | (1 << relay_16[9].pin) | (1 << relay_16[10].pin);
 }
 
 void test_11() {
@@ -453,11 +509,64 @@ void _abort() {
     for (;;);
 }
 
+void switch_color_channel(uint8_t color) {
+    /* s2 pin on tcs3200 */
+    if (color&0x02) {
+        PORTH |= (1 << PH1);
+    }
+    else {
+        PORTH &= ~(1 << PH1);
+    }
+    /* s3 pin on tcs3200 */
+    if (color&0x01) {
+        PORTH |= (1 << PH0);
+    }
+    else {
+        PORTH &= ~(1 << PH0);
+    }
+}
+
 /* ISR */
 
 ISR(TIMER0_COMPA_vect) {
     tick++;
 }
+
+ISR(TIMER1_COMPA_vect) {
+    if (color_channel == 1) {
+        // counts_r = color_pulse_count;
+        color[color_array_index].r = color_pulse_count;
+        switch_color_channel(g_channel);
+        color_channel = 2;
+    }
+    else if (color_channel == 2) {
+        // counts_g = color_pulse_count;
+        color[color_array_index].g = color_pulse_count;
+        switch_color_channel(b_channel);
+        color_channel = 3;
+    }
+    else if (color_channel == 3) {
+        // counts_b = color_pulse_count;
+        color[color_array_index].b = color_pulse_count;
+        switch_color_channel(r_channel);
+        color_channel = 1;
+        // color_data_ready = true;
+
+        if (++color_array_index == 1000) {
+            print_ready = true;
+        }
+    }
+    else {
+        color_channel = 1;
+        switch_color_channel(r_channel);
+    }
+
+    color_pulse_count = 0;
+}
+
+// ISR(TIMER3_COMPA_vect) {
+//     print_ready = true;
+// }
 
 // ISR(INT0_vect) {
 //     // 
@@ -465,6 +574,10 @@ ISR(TIMER0_COMPA_vect) {
 
 ISR(INT2_vect) {
     beep_flag = true;
+}
+
+ISR(INT3_vect) {
+    color_pulse_count++;
 }
 
 // ISR(TIMER0_OVF_vect) {
